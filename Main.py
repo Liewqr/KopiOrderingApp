@@ -254,16 +254,16 @@ def main():
                 st.markdown(f"**{coffee}** - ${price:.2f}")
                 
                 # Add buttons
-                cols = st.columns([3, 1])
-                add_ons_selection = cols[0].multiselect(
-                    f"Add-ons for {coffee}:",
-                    options=list(ADD_ONS.keys()),
-                    key=f"add_ons_{coffee}"
-                )
-                
-                if cols[1].button("Add", key=f"add_{coffee}"):
-                    add_to_order(coffee, add_ons_selection)
-                    st.success(f"Added {coffee} to your order")
+                add_ons_selection = st.multiselect(
+            f"Add-ons for {coffee}:",
+            options=list(ADD_ONS.keys()),
+            key=f"add_ons_{coffee}"
+        )
+
+        # Move button outside of nested columns
+        if st.button(f"Add {coffee}", key=f"add_{coffee}"):
+            add_to_order(coffee, add_ons_selection)
+            st.success(f"Added {coffee} to your order")
         
         st.markdown("---")
         st.subheader("Add-ons")
@@ -351,3 +351,4 @@ def main():
 
 if __name__ == "__main__":
     main()
+
