@@ -1,0 +1,22 @@
+# Virtual environment
+venv/
+.env
+*.pyc
+__pycache__/
+*.pyo
+*.pyd
+
+# Streamlit cache & logs
+.streamlit/
+logs/
+
+# SQLite database file
+coffee_orders.db
+
+# System files
+.DS_Store
+Thumbs.db
+
+# VSCode & PyCharm settings (optional)
+.vscode/
+.idea/
