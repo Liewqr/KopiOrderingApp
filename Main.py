@@ -212,20 +212,34 @@ def main():
         if not st.session_state.current_order:
             st.info("Your order is empty. Add items from the menu or use voice commands.")
         else:
-            # Display current order as a table
-            order_table = {
-                "Coffee": [],
-                "Quantity": []
-            }
+            # Create a DataFrame for displaying the order with delete buttons
+            order_items = []
+            for i, item in enumerate(st.session_state.current_order):
+                order_items.append({
+                    "Coffee": item["coffee"],
+                    "Quantity": item["quantity"],
+                    "Remove": "🗑️"  # Bin emoji for delete action
+                })
             
-            for item in st.session_state.current_order:
-                coffee = item["coffee"]
-                quantity = item["quantity"]
+            order_df = pd.DataFrame(order_items)
+            
+            # Display each row with delete button
+            for i, item in enumerate(order_items):
+                cols = st.columns([3, 2, 1])  # Adjust column widths as needed
                 
-                order_table["Coffee"].append(coffee)
-                order_table["Quantity"].append(quantity)
-            
-            st.table(order_table)
+                cols[0].write(f"**{item['Coffee']}**")
+                cols[1].write(f"{item['Quantity']}")
+                
+                # Delete button that reduces quantity by 1
+                if cols[2].button("🗑️", key=f"remove_item_{i}"):
+                    if st.session_state.current_order[i]["quantity"] > 1:
+                        # Reduce quantity by 1
+                        st.session_state.current_order[i]["quantity"] -= 1
+                    else:
+                        # Remove the item if quantity becomes 0
+                        st.session_state.current_order.pop(i)
+                    st.session_state.should_rerun = True
+                    st.rerun()
             
             # Order buttons
             col_clear, col_complete = st.columns(2)
@@ -239,7 +253,7 @@ def main():
             with col_complete:
                 if st.button("Place Order", key="place_btn"):
                     complete_order()
-        
+                    
         st.markdown("## Order History")
         c.execute("SELECT id, items, timestamp FROM orders ORDER BY timestamp DESC LIMIT 10")
         orders = c.fetchall()
