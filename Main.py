@@ -5,6 +5,8 @@ from datetime import datetime
 import speech_recognition as sr
 import pyttsx3
 import threading
+import pandas as pd
+import time
 
 # Set page configuration
 st.set_page_config(
@@ -30,6 +32,13 @@ if 'coffee_quantities' not in st.session_state:
     ]}
 if 'should_rerun' not in st.session_state:
     st.session_state.should_rerun = False
+# Add notification state variables
+if 'show_notification' not in st.session_state:
+    st.session_state.show_notification = False
+if 'notification_message' not in st.session_state:
+    st.session_state.notification_message = ""
+if 'notification_timestamp' not in st.session_state:
+    st.session_state.notification_timestamp = 0
 
 # Database setup
 def init_db():
@@ -60,6 +69,12 @@ COFFEE_MENU = [
     "Affogato",
 ]
 
+# Function to display notification
+def show_notification(message):
+    st.session_state.show_notification = True
+    st.session_state.notification_message = message
+    st.session_state.notification_timestamp = time.time()
+
 # Speech recognition function
 def recognize_speech():
     r = sr.Recognizer()
@@ -85,6 +100,7 @@ def process_speech_command(text):
         if coffee.lower() in text:
             add_to_order(coffee)
             speak_text(f"Added {coffee} to your order")
+            show_notification(f"✅ Added {coffee} to your order")
             st.session_state.should_rerun = True
             return
     
@@ -96,6 +112,7 @@ def process_speech_command(text):
         st.session_state.current_order = []
         reset_quantities()
         speak_text("Order cleared")
+        show_notification("🗑️ Order cleared")
         st.session_state.should_rerun = True
         return
     
@@ -138,6 +155,7 @@ def add_to_order(coffee):
 def complete_order():
     if not st.session_state.current_order:
         speak_text("Your order is empty")
+        show_notification("⚠️ Your order is empty")
         return
     
     timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
@@ -155,6 +173,7 @@ def complete_order():
         order_summary += f"{quantity} {coffee}, "
     
     speak_text(order_summary)
+    show_notification("🎉 Order placed successfully!")
     
     st.session_state.current_order = []
     reset_quantities()
@@ -162,36 +181,83 @@ def complete_order():
 
 # Main UI
 def main():
-    st.title("☕ Kopi Ordering App")
+    st.markdown("""
+    <h1 style='color: black; text-align: center;'>☕ Kopi Ordering App</h1>""", unsafe_allow_html=True)
+    
+    
+    # Add CSS for floating notification
+    st.markdown("""
+    <style>
+    .floating-notification {
+        position: fixed;
+        top: 70px;
+        right: 20px;
+        padding: 15px 20px;
+        background-color: #4CAF50;
+        color: white;
+        border-radius: 10px;
+        box-shadow: 0 4px 8px rgba(0,0,0,0.2);
+        z-index: 9999;
+        animation: fadeInOut 3s forwards;
+        max-width: 300px;
+    }
+    
+    @keyframes fadeInOut {
+        0% { opacity: 0; transform: translateY(20px); }
+        10% { opacity: 1; transform: translateY(0); }
+        90% { opacity: 1; transform: translateY(0); }
+        100% { opacity: 0; transform: translateY(-20px); }
+    }
+    
+    div.stButton > button {
+        width: 100%;
+        background-color: #1e1e1e;
+        color: white;
+        border: 1px solid #333;
+        padding: 10px;
+        border-radius: 5px;
+        font-size: 16px;
+        margin: 5px 0;
+    }
+    div.stButton > button:hover {
+        background-color: #333;
+    }
+
+    [data-testid="stAppViewContainer"] {
+    background-color: #fefbd8 /* Cream color*/
+    }
+
+    [data-testid='stSidebar"] {
+        background-color: #f5e1a4; /* Light beige sidebar */
+        }
+    
+    
+
+    </style>
+    """, unsafe_allow_html=True)
+    
+    # Display floating notification if active
+    current_time = time.time()
+    if st.session_state.show_notification and (current_time - st.session_state.notification_timestamp < 3):
+        notification_html = f"""
+        <div class="floating-notification">
+            {st.session_state.notification_message}
+        </div>
+        """
+        st.markdown(notification_html, unsafe_allow_html=True)
+    else:
+        st.session_state.show_notification = False
     
     # Create a layout with two main columns
     col1, col2 = st.columns([2, 1])
     
     with col1:
-        st.markdown("## Coffee Menu")
+        st.markdown("""
+        <h1 style='color: black; text-align: Top ;'>Coffee Menu</h1>""", unsafe_allow_html=True)
         
         # Create a grid layout for coffee buttons - 2 columns
         num_cols = 2
         rows = [COFFEE_MENU[i:i + num_cols] for i in range(0, len(COFFEE_MENU), num_cols)]
-        
-        # Custom CSS for button styling
-        st.markdown("""
-        <style>
-        div.stButton > button {
-            width: 100%;
-            background-color: #1e1e1e;
-            color: white;
-            border: 1px solid #333;
-            padding: 10px;
-            border-radius: 5px;
-            font-size: 16px;
-            margin: 5px 0;
-        }
-        div.stButton > button:hover {
-            background-color: #333;
-        }
-        </style>
-        """, unsafe_allow_html=True)
         
         # Create a table of buttons
         for row in rows:
@@ -200,17 +266,18 @@ def main():
                 with cols[i]:
                     if st.button(f"Add {coffee}", key=f"add_{coffee}"):
                         add_to_order(coffee)
-                        st.success(f"Added {coffee} to your order")
+                        show_notification(f"✅ Added {coffee} to your order")
                         st.session_state.should_rerun = True
         
         # Voice input button at the bottom of menu
         st.button("Start Voice Input", key="voice_btn", on_click=recognize_speech)
     
     with col2:
-        st.markdown("## Current Order")
+        st.markdown("""
+        <h1 style='color: black; text-align: Top;'>Current Order</h1>""", unsafe_allow_html=True)
         
         if not st.session_state.current_order:
-            st.info("Your order is empty. Add items from the menu or use voice commands.")
+            st.markdown("<p style='color: black; '>Your order is empty. Add items from the menu or use voice commands.</p>", unsafe_allow_html = True)
         else:
             # Create a DataFrame for displaying the order with delete buttons
             order_items = []
@@ -227,19 +294,24 @@ def main():
             for i, item in enumerate(order_items):
                 cols = st.columns([3, 2, 1])  # Adjust column widths as needed
                 
-                cols[0].write(f"**{item['Coffee']}**")
-                cols[1].write(f"{item['Quantity']}")
+                cols[0].write(f"<p style='color: black; font-weight: bold;'>{item['Coffee']}</p>",unsafe_allow_html=True)
+                cols[1].write(f"<p style='color: black;'>{item['Quantity']}</p>", unsafe_allow_html=True)
                 
                 # Delete button that reduces quantity by 1
                 if cols[2].button("🗑️", key=f"remove_item_{i}"):
+                    coffee = st.session_state.current_order[i]["coffee"]
                     if st.session_state.current_order[i]["quantity"] > 1:
                         # Reduce quantity by 1
                         st.session_state.current_order[i]["quantity"] -= 1
+                        # Also update the coffee_quantities dictionary
+                        st.session_state.coffee_quantities[coffee] -= 1
+                        show_notification(f"➖ Reduced {coffee} quantity")
                     else:
                         # Remove the item if quantity becomes 0
+                        st.session_state.coffee_quantities[coffee] = 0
                         st.session_state.current_order.pop(i)
+                        show_notification(f"🗑️ Removed {coffee} from order")
                     st.session_state.should_rerun = True
-                    st.rerun()
             
             # Order buttons
             col_clear, col_complete = st.columns(2)
@@ -248,18 +320,21 @@ def main():
                 if st.button("Clear Order", key="clear_btn"):
                     st.session_state.current_order = []
                     reset_quantities()
+                    show_notification("🗑️ Order cleared")
                     st.session_state.should_rerun = True
             
             with col_complete:
                 if st.button("Place Order", key="place_btn"):
                     complete_order()
                     
-        st.markdown("## Order History")
+        st.markdown("""
+        <h1 style='color: black; text-align: Top;'>Order History</h1>""", unsafe_allow_html=True)
+
         c.execute("SELECT id, items, timestamp FROM orders ORDER BY timestamp DESC LIMIT 10")
         orders = c.fetchall()
         
         if not orders:
-            st.info("No previous orders found.")
+            st.markdown("<p sytle='color: black;'>No previous orders found.</p>",unsafe_allow_html=True)
         else:
             for order in orders:
                 order_id, items_json, timestamp = order
@@ -269,7 +344,7 @@ def main():
                         for item in items:
                             coffee = item.get("coffee", "Unknown Coffee")
                             quantity = item.get("quantity", 1)
-                            st.markdown(f"**{quantity}x {coffee}**")
+                            st.markdown(f"<p style='color: black;'>**{quantity}x {coffee}**</p>",unsafe_allow_html=True)
                     except json.JSONDecodeError:
                         st.error("Error loading order details.")
     
@@ -286,7 +361,7 @@ def main():
     # Check if we need to rerun the app
     if st.session_state.should_rerun:
         st.session_state.should_rerun = False
-        st.experimental_rerun()
+        st.rerun()  # Keep this as experimental_rerun to maintain current behavior
 
 if __name__ == "__main__":
     main()
